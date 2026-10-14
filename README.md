@@ -2,7 +2,9 @@
 
 Proposta conceito da APX Web para a Saint Tropez Confeitaria (Rua Piracema, Santa Teresinha, Zona Norte de São Paulo). Não tem vínculo oficial com a casa; a página usa `noindex` até a aprovação.
 
-A ideia: a página é a fachada da Rua Piracema. O fundo é o relevo branco de pirâmides, desenhado num canvas e iluminado por um sol que atravessa a página com o scroll (nasce na abertura e anoitece no bloco do endereço). A vitrine é um trilho horizontal no turquesa da marquise; o salão se abre a partir de um arco.
+**Cópia de teste** (pasta `saint-tropez-teste`, branch `teste`, sem GitHub e com push desligado). Mudanças aprovadas aqui são levadas depois para o projeto oficial `saint-tropez-experience`.
+
+A ideia desta versão: a página atravessa a casa pelos seus arcos. A abertura é a arcada do salão; o arco do meio é a fachada, que se abre até tomar a tela quando você rola. A vitrine tem um capítulo por categoria, cada um com a sua composição (colagem de bolos, croissants em tela cheia, balcão turquesa dos salgados com as fotos subindo uma sobre a outra, pratos passando ao lado do texto fixo). O salão é noturno, com novas vistas subindo por um arco; a casa chega num turquesa que sobe pela tela; Instagram e Visite fecham. Fundo porcelana, letras cacau, campos turquesa e capítulos noturnos. Sem movimento (preferência do sistema), tudo vira um layout estático completo.
 
 ## Rodar
 
@@ -23,8 +25,8 @@ npm run test:e2e   # Playwright, desktop e celular (faz o build antes)
 | `src/render.js` | Transforma os dados em HTML no build (`{{chave}}` no `index.html`). |
 | `index.html` | Estrutura da página. |
 | `src/styles/main.css` | Design system (tokens no `:root`) e seções. |
-| `src/main.js` | Scroll (Lenis + GSAP ScrollTrigger), cabeçalho, menu, vitrine, salão. |
-| `src/js/relief.js` | O relevo da fachada e o caminho do sol. |
+| `src/main.js` | Scroll (Lenis + GSAP ScrollTrigger), cabeçalho, menu, abertura em arcada, revelações da vitrine, palcos fixos dos salgados e do salão, turquesa da casa. |
+| `tools/shots.mjs`, `tools/hero-shots.mjs`, `tools/static-shot.mjs` | Capturas de tela para revisão (rolagem, transição da abertura, layout sem movimento). |
 | `src/js/lightbox.js` | Foto ampliada da vitrine (`<dialog>`, setas, teclado, swipe). |
 | `src/js/status.js` | "Aberto agora", no fuso de São Paulo. |
 | `assets-src/` | Fotos originais (Instagram da casa, com o selo). |

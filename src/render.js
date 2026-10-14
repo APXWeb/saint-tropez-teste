@@ -1,5 +1,5 @@
-// Build-time HTML for the parts of index.html that come from src/data/site.js.
-// vite.config.js replaces each <!-- @name --> marker in index.html with these strings,
+﻿// Build-time HTML for the parts of index.html that come from src/data/site.js.
+// vite.config.js replaces each {{name}} marker in index.html with these strings,
 // so the shipped page is static HTML and every fact lives in one file.
 import images from './data/images.json' with { type: 'json' }
 import { site, vitrine, alsoInHouse, salao, facade, instagramPicks } from './data/site.js'
@@ -24,6 +24,7 @@ export function picture(name, { alt = '', sizes = '100vw', eager = false, cls = 
 
 const icon = {
   arrow: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>',
+  down: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v13M6 13l6 6 6-6"/></svg>',
   pin: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.6"/></svg>',
   route: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.4 18H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.6"/></svg>',
   insta: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="0.9" class="dot"/></svg>',
@@ -43,51 +44,143 @@ const highlightIcon = {
 
 const ext = 'target="_blank" rel="noopener"'
 
+/* A vitrine. Every photo is a button that opens the lightbox; data-index follows the
+   order of src/data/site.js, which the lightbox walks through. Each category gets its
+   own composition, so the classes name the slot, not the photo. */
+let pieceIndex = 0
+function piece(it, { slot, sizes, depth = 0, caption = true }) {
+  const n = pieceIndex++
+  return (
+    `<figure class="piece ${slot}"${depth ? ` data-depth="${depth}"` : ''}>` +
+    `<button class="piece-open" type="button" data-index="${n}" aria-label="Ampliar foto: ${esc(it.caption)}">` +
+    picture(it.img, { alt: it.alt, sizes }) +
+    `<span class="piece-zoom" aria-hidden="true">${icon.expand}</span>` +
+    `</button>` +
+    (caption ? `<figcaption>${esc(it.caption)}</figcaption>` : `<figcaption class="sr">${esc(it.caption)}</figcaption>`) +
+    `</figure>`
+  )
+}
+
+const head = (c, cls = '') =>
+  `<header class="chapter-head ${cls}"><h3 id="${c.id}-t" class="chapter-title" data-rise>${esc(c.title)}</h3><p>${esc(c.note)}</p></header>`
+
 function vitrineHTML() {
-  let index = 0
+  pieceIndex = 0
+  const [bolos, paes, salgados, pratos] = vitrine
+
   const nav = vitrine
     .map(
       (c, i) =>
-        `<li><a class="shelf-tab" href="#${c.id}" data-shelf="${i}"><span>${esc(c.title)}</span><span class="shelf-count">${c.items.length}</span></a></li>`,
+        `<li><a class="shelf-tab" href="#${c.id}" data-shelf="${i}">` +
+        `<span class="shelf-name">${esc(c.title)}</span>` +
+        `<span class="shelf-count">${c.items.length} fotos</span>` +
+        `<span class="shelf-thumb" aria-hidden="true">${picture(c.items[0].img, { sizes: '12rem' })}</span>` +
+        `</a></li>`,
     )
     .join('')
-  const shelves = vitrine
-    .map((c, ci) => {
-      const items = c.items
-        .map((it, i) => {
-          const n = index++
-          return (
-            `<figure class="piece piece--${(i % 5) + 1}">` +
-            `<button class="piece-open" type="button" data-index="${n}" aria-label="Ampliar foto: ${esc(it.caption)}">` +
-            picture(it.img, { alt: it.alt, sizes: '(max-width: 760px) 78vw, 30vw' }) +
-            `<span class="piece-glass" aria-hidden="true"></span>` +
-            `<span class="piece-zoom" aria-hidden="true">${icon.expand}</span>` +
-            `</button><figcaption>${esc(it.caption)}</figcaption></figure>`
-          )
-        })
-        .join('')
+
+  // Bolos e doces: an editorial collage, one cake as the lead.
+  const b = bolos.items
+  const bolosHTML =
+    `<section class="chapter chapter--bolos shelf" id="${bolos.id}" aria-labelledby="${bolos.id}-t">` +
+    `<div class="bolos-grid">` +
+    head(bolos, 'bolos-head') +
+    piece(b[0], { slot: 'b1', sizes: '(max-width: 760px) 92vw, 56vw' }) +
+    piece(b[1], { slot: 'b2 piece--arch', sizes: '(max-width: 760px) 60vw, 34vw', depth: 0.12 }) +
+    piece(b[2], { slot: 'b3', sizes: '(max-width: 760px) 60vw, 28vw', depth: -0.08 }) +
+    piece(b[3], { slot: 'b4', sizes: '(max-width: 760px) 92vw, 46vw' }) +
+    piece(b[4], { slot: 'b5', sizes: '(max-width: 760px) 46vw, 22vw', depth: 0.1 }) +
+    piece(b[5], { slot: 'b6 piece--arch', sizes: '(max-width: 760px) 46vw, 22vw', depth: -0.14 }) +
+    `</div></section>`
+
+  // Pães e folhados: the croissants full-bleed, then three windows on the counter.
+  const p = paes.items
+  const paesHTML =
+    `<section class="chapter chapter--paes shelf" id="${paes.id}" aria-labelledby="${paes.id}-t">` +
+    `<div class="paes-band" data-band>` +
+    piece(p[0], { slot: 'p1', sizes: '100vw', caption: false }) +
+    head(paes, 'paes-head') +
+    `</div>` +
+    `<div class="paes-row">` +
+    piece(p[1], { slot: 'p2', sizes: '(max-width: 760px) 60vw, 28vw', depth: 0.1 }) +
+    piece(p[2], { slot: 'p3 piece--arch', sizes: '(max-width: 760px) 80vw, 34vw' }) +
+    piece(p[3], { slot: 'p4', sizes: '(max-width: 760px) 60vw, 26vw', depth: -0.12 }) +
+    `</div></section>`
+
+  // Salgados: a turquoise counter; on desktop the photos rise one over the other.
+  const s = salgados.items
+  const salgadosHTML =
+    `<section class="chapter chapter--salgados shelf" id="${salgados.id}" aria-labelledby="${salgados.id}-t" data-theme="turq">` +
+    `<div class="salg-stage" data-stack>` +
+    `<div class="salg-text">${head(salgados, 'salg-head')}` +
+    `<ol class="salg-index" aria-hidden="true">${s.map((it, i) => `<li${i === 0 ? ' class="is-active"' : ''}><span>${esc(it.caption)}</span></li>`).join('')}</ol>` +
+    `</div>` +
+    `<div class="salg-pieces">${s.map((it, i) => piece(it, { slot: `s${i + 1}`, sizes: '(max-width: 760px) 80vw, 40vw' })).join('')}</div>` +
+    `</div></section>`
+
+  // Pratos e saladas: the text holds still while the plates pass; the list of what has no photo closes the vitrine.
+  const q = pratos.items
+  const pratosHTML =
+    `<section class="chapter chapter--pratos shelf" id="${pratos.id}" aria-labelledby="${pratos.id}-t">` +
+    `<div class="pratos-grid">` +
+    `<div class="pratos-text">${head(pratos, 'pratos-head')}` +
+    `<div class="also" role="group" aria-label="Também na casa">` +
+    `<ul class="also-list">${alsoInHouse.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>` +
+    `<p>Também na casa, sem fotos aqui, mas com destaque próprio no Instagram.</p>` +
+    `<a class="link-arrow" href="${site.links.instagram}" ${ext}>Ver os destaques no Instagram ${icon.arrow}</a></div>` +
+    `</div>` +
+    `<div class="pratos-pieces">` +
+    piece(q[0], { slot: 'q1', sizes: '(max-width: 760px) 80vw, 30vw' }) +
+    piece(q[1], { slot: 'q2 piece--arch', sizes: '(max-width: 760px) 70vw, 26vw', depth: -0.12 }) +
+    piece(q[2], { slot: 'q3', sizes: '(max-width: 760px) 70vw, 26vw', depth: 0.08 }) +
+    piece(q[3], { slot: 'q4', sizes: '(max-width: 760px) 80vw, 30vw' }) +
+    `</div></div></section>`
+
+  return { nav, shelves: bolosHTML + paesHTML + salgadosHTML + pratosHTML }
+}
+
+// The opening arcade: the salão's vault as a row of arches. The facade sits in the middle.
+function arcadeHTML() {
+  const arches = [
+    { img: 'doces-finos', slot: 'arch--o' },
+    { img: 'bolo-camadas-frutas', slot: 'arch--s' },
+    { img: facade.side.img, slot: 'arch--c', alt: facade.side.alt },
+    { img: 'croissants', slot: 'arch--s' },
+    { img: 'tortinhas-coloridas', slot: 'arch--o' },
+  ]
+  return arches
+    .map(({ img, slot, alt = '' }) => {
+      const center = slot === 'arch--c'
       return (
-        `<section class="shelf" id="${c.id}" aria-labelledby="${c.id}-t" data-shelf="${ci}">` +
-        `<header class="shelf-head"><h3 id="${c.id}-t">${esc(c.title)}</h3><p>${esc(c.note)}</p></header>` +
-        `<div class="shelf-pieces">${items}</div></section>`
+        `<figure class="arch ${slot}"${center ? ' data-arch-center' : ' data-arch-side'}>` +
+        picture(img, { alt, sizes: center ? '100vw' : '(max-width: 760px) 44vw, 18vw', eager: true }) +
+        `</figure>`
       )
     })
     .join('')
-  const also =
-    `<aside class="shelf shelf--also" aria-labelledby="also-t"><header class="shelf-head">` +
-    `<h3 id="also-t">E também</h3><p>Sem fotos aqui, mas com destaque próprio no Instagram da casa.</p></header>` +
-    `<ul class="also-list">${alsoInHouse.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>` +
-    `<a class="link-arrow" href="${site.links.instagram}" ${ext}>Ver os destaques no Instagram ${icon.arrow}</a></aside>`
-  return { nav, shelves: shelves + also }
 }
 
-function salaoFrames() {
-  return salao.frames
+function salaoLayers() {
+  const layers = [
+    { img: salao.wide.img, alt: salao.wide.alt, caption: 'O salão, sob os arcos de vidro' },
+    { img: salao.frames[0].img, alt: salao.frames[0].alt, caption: salao.frames[0].caption },
+    { img: salao.frames[1].img, alt: salao.frames[1].alt, caption: salao.frames[1].caption },
+  ]
+  const html = layers
     .map(
-      (f, i) =>
-        `<figure class="frame frame--${i + 1}" data-reveal>${picture(f.img, { alt: f.alt, sizes: '(max-width: 760px) 92vw, 40vw', cls: 'frame-pic' })}<figcaption>${esc(f.caption)}</figcaption></figure>`,
+      (l, i) =>
+        `<figure class="salao-layer" data-salao-layer="${i}">${picture(l.img, { alt: l.alt, sizes: '100vw' })}<figcaption>${esc(l.caption)}</figcaption></figure>`,
     )
     .join('')
+  return html
+}
+
+function salaoAfter() {
+  const [, , cart, trike] = salao.frames
+  return (
+    `<figure class="cart" data-sill>${picture(cart.img, { alt: cart.alt, sizes: '(max-width: 760px) 92vw, 52vw' })}<figcaption>${esc(cart.caption)}</figcaption></figure>` +
+    `<figure class="trike" data-depth="-0.12">${picture(trike.img, { alt: trike.alt, sizes: '(max-width: 760px) 60vw, 24vw' })}<figcaption>${esc(trike.caption)}</figcaption></figure>`
+  )
 }
 
 function hoursRows() {
@@ -112,10 +205,7 @@ function highlightsHTML() {
 
 function instaStrip() {
   return instagramPicks
-    .map(
-      (name, i) =>
-        `<li class="ig ig--${i + 1}"><a href="${site.links.instagram}" ${ext} aria-label="Abrir o Instagram da Saint Tropez">${picture(name, { alt: '', sizes: '(max-width: 760px) 45vw, 20vw' })}</a></li>`,
-    )
+    .map((name, i) => `<span class="ig ig--${i + 1}">${picture(name, { alt: '', sizes: '(max-width: 760px) 46vw, 22vw' })}</span>`)
     .join('')
 }
 
@@ -155,7 +245,7 @@ export function blocks() {
     'region': esc(a.region),
     'hours-summary': esc(site.hoursSummary),
     'hours-rows': hoursRows(),
-    'rules': site.rules.map((r) => `<li>${esc(r)}.</li>`).join(''),
+    'rules': site.rules.map((r) => `<li><span>${esc(r)}.</span></li>`).join(''),
     'rating': `${site.rating.value} no ${site.rating.source}, em ${site.rating.count} avaliações (${site.rating.month})`,
     'maps': site.links.maps,
     'directions': site.links.directions,
@@ -166,16 +256,16 @@ export function blocks() {
     'apx': site.links.apx,
     'vitrine-nav': v.nav,
     'vitrine-shelves': v.shelves,
-    'salao-wide': picture(salao.wide.img, { alt: salao.wide.alt, sizes: '100vw', cls: 'reveal-pic' }),
-    'salao-frames': salaoFrames(),
-    'hero-salao': picture('salao-palmeiras', { alt: salao.frames[0].alt, sizes: '(max-width: 760px) 70vw, 34vw', eager: true }),
-    'hero-cake': picture('bolo-camadas-frutas', { alt: 'Bolo de camadas vermelhas coberto de frutas vermelhas', sizes: '(max-width: 760px) 44vw, 18vw', eager: true }),
-    'facade-day': picture(facade.day.img, { alt: facade.day.alt, sizes: '(max-width: 760px) 92vw, 38vw' }),
-    'facade-night': picture(facade.night.img, { alt: facade.night.alt, sizes: '(max-width: 760px) 92vw, 42vw' }),
+    'arcade': arcadeHTML(),
+    'salao-layers': salaoLayers(),
+    'salao-after': salaoAfter(),
+    'facade-day': picture(facade.day.img, { alt: facade.day.alt, sizes: '(max-width: 760px) 80vw, 38vw' }),
+    'facade-night': picture(facade.night.img, { alt: facade.night.alt, sizes: '(max-width: 760px) 92vw, 44vw' }),
     'highlights': highlightsHTML(),
     'insta-strip': instaStrip(),
     'json-ld': jsonLd(),
     'i-arrow': icon.arrow,
+    'i-down': icon.down,
     'i-pin': icon.pin,
     'i-route': icon.route,
     'i-insta': icon.insta,
