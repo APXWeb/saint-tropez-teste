@@ -180,6 +180,8 @@ export const facade = {
 }
 
 // Curated, static: photos the house published. Not a live feed.
-// Só fotos que não aparecem em nenhuma outra parte da página. As demais fotos reais já estão
-// na abertura, na vitrine, no salão e em A casa; sem fotos novas, a faixa fica com duas.
-export const instagramPicks = ['fachada-relevo', 'fachada-noite']
+// A mesma fachada de dia e à noite: duas fotos da casa, comparadas num único quadro.
+export const instagramDuo = {
+  day: { img: 'fachada-relevo', alt: 'Canto da fachada em relevo branco com o logotipo e a marquise turquesa, de dia' },
+  night: { img: 'fachada-noite', alt: 'Cobertura de arcos da entrada à noite, iluminada por baixo' },
+}

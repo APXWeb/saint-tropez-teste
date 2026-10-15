@@ -2,7 +2,7 @@
 // vite.config.js replaces each <!-- @name --> marker in index.html with these strings,
 // so the shipped page is static HTML and every fact lives in one file.
 import images from './data/images.json' with { type: 'json' }
-import { site, vitrine, alsoInHouse, salao, facade, instagramPicks } from './data/site.js'
+import { site, vitrine, alsoInHouse, salao, facade, instagramDuo } from './data/site.js'
 import { menu, menuCount, menuSource } from './data/cardapio.js'
 
 const esc = (s) =>
@@ -133,13 +133,27 @@ function highlightsHTML() {
     .join('')
 }
 
-function instaStrip() {
-  return instagramPicks
-    .map(
-      (name, i) =>
-        `<li class="ig ig--${i + 1}"><a href="${site.links.instagram}" ${ext} aria-label="Abrir o Instagram da Saint Tropez">${picture(name, { alt: '', sizes: '(max-width: 760px) 45vw, 20vw' })}</a></li>`,
-    )
-    .join('')
+// Instagram: the day and the night of the same façade, one arch to slide across.
+// A range input sits over the whole frame, so dragging, touch and the keyboard all work.
+function instaDuo() {
+  const sizes = '(max-width: 960px) 92vw, 46vw'
+  return (
+    `<div class="duo" data-duo>` +
+    `<div class="duo-frame">` +
+    `<div class="duo-pic duo-day">${picture(instagramDuo.day.img, { alt: instagramDuo.day.alt, sizes })}</div>` +
+    `<div class="duo-pic duo-night">${picture(instagramDuo.night.img, { alt: instagramDuo.night.alt, sizes })}</div>` +
+    `<span class="duo-tag duo-tag--day" aria-hidden="true">De dia</span>` +
+    `<span class="duo-tag duo-tag--night" aria-hidden="true">À noite</span>` +
+    `<span class="duo-line" aria-hidden="true"></span>` +
+    `<input class="duo-range" type="range" min="0" max="100" value="50" aria-label="Deslize para comparar a fachada de dia e à noite">` +
+    `</div>` +
+    `<div class="duo-copy">` +
+    `<h3 class="duo-title">A mesma fachada, <em>de dia e à noite.</em></h3>` +
+    `<p>De dia, o relevo branco e a marquise turquesa. À noite, a cobertura de arcos e o letreiro acesos. Arraste a linha para comparar.</p>` +
+    `<a class="link-arrow" href="${site.links.instagram}" ${ext}>Ver mais fotos no Instagram ${icon.arrow}</a>` +
+    `</div>` +
+    `</div>`
+  )
 }
 
 // Cardápio: the index on the home links into cardapio.html, which holds the whole board.
@@ -249,8 +263,7 @@ export function blocks() {
     'facade-day': picture(facade.day.img, { alt: facade.day.alt, sizes: '(max-width: 760px) 92vw, 38vw' }),
     'facade-night': picture(facade.night.img, { alt: facade.night.alt, sizes: '(max-width: 760px) 92vw, 42vw' }),
     'highlights': highlightsHTML(),
-    'insta-strip': instaStrip(),
-    'insta-cols': String(instagramPicks.length),
+    'insta-duo': instaDuo(),
     'json-ld': jsonLd(),
     'menu-index': menuIndexHTML(),
     'menu-nav': menuNavHTML(),
