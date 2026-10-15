@@ -104,31 +104,56 @@ test('menu móvel abre, prende o foco e fecha com Esc', async ({ page, isMobile 
   await expect(btn).toHaveAttribute('aria-expanded', 'false')
 })
 
-test('vitrine: categorias, lightbox, navegação entre fotos e teclado', async ({ page }) => {
-  await page.locator('.shelf-tab', { hasText: 'Salgados' }).click()
-  await expect
-    .poll(
-      () =>
-        page.locator('#salgados').evaluate((el) => {
-          const r = el.getBoundingClientRect()
-          return r.left < window.innerWidth * 0.5 && r.right > 0 && r.top < window.innerHeight && r.bottom > 0
-        }),
-      { timeout: 8000 },
-    )
-    .toBe(true)
+test('vitrine: um balcão numa tela, prateleiras trocam e cada uma leva ao cardápio', async ({ page, isMobile }) => {
+  const vit = page.locator('#vitrine')
+  await vit.scrollIntoViewIfNeeded()
+  const [h, vh] = await page.evaluate(() => [document.getElementById('vitrine').offsetHeight, window.innerHeight])
+  expect(h).toBeLessThan(vh * (isMobile ? 1.8 : 1.15))
+  const plaques = page.getByRole('tab')
+  await expect(plaques).toHaveCount(5)
+  await expect(plaques.first()).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('#bolos-e-doces')).toBeVisible()
+  await expect(page.locator('#salgados')).toBeHidden()
+  await page.getByRole('tab', { name: /Salgados/ }).click()
+  await expect(page.getByRole('tab', { name: /Salgados/ })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('#salgados')).toBeVisible()
+  await expect(page.locator('#bolos-e-doces')).toBeHidden()
+  await expect(page.locator('#salgados .piece')).toHaveCount(5)
+  await expect(page.locator('#salgados .case-menu')).toHaveAttribute('href', 'cardapio.html#sanduiches')
+})
 
+test('vitrine: teclado nas plaquinhas e todas as fotos na galeria', async ({ page }) => {
+  const first = page.getByRole('tab').first()
+  await first.focus()
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowRight')
+  const salgados = page.getByRole('tab', { name: /Salgados/ })
+  await expect(salgados).toBeFocused()
+  await expect(salgados).toHaveAttribute('aria-selected', 'true')
+  const more = page.locator('#salgados .case-more')
+  await expect(more).toHaveText(/Ver as 10 fotos/)
+  await more.click()
+  const dialog = page.locator('[data-lightbox]')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('[data-lb-count]')).toHaveText('18 de 41')
+  for (let i = 0; i < 9; i++) await dialog.getByRole('button', { name: 'Próxima foto' }).click()
+  await expect(dialog.locator('[data-lb-count]')).toHaveText('27 de 41')
+  await expect(dialog.locator('[data-lb-cat]')).toHaveText('Salgados')
+  await page.keyboard.press('Escape')
+  await expect(more).toBeFocused()
+})
+
+test('vitrine: foto do balcão abre a galeria no lugar certo', async ({ page }) => {
+  await page.getByRole('tab', { name: /Salgados/ }).click()
   const first = page.locator('#salgados .piece-open').first()
+  await first.scrollIntoViewIfNeeded()
   await first.click()
   const dialog = page.locator('[data-lightbox]')
   await expect(dialog).toBeVisible()
   await expect(dialog.locator('[data-lb-title]')).toHaveText('Salgado assado com tomate')
-  await expect(dialog.locator('[data-lb-count]')).toHaveText('11 de 19')
+  await expect(dialog.locator('[data-lb-count]')).toHaveText('18 de 41')
   await expect.poll(() => dialog.locator('.lb-frame img').evaluate((i) => i.complete && i.naturalWidth > 0)).toBe(true)
-  await dialog.getByRole('button', { name: 'Próxima foto' }).click()
-  await expect(dialog.locator('[data-lb-count]')).toHaveText('12 de 19')
   await page.keyboard.press('ArrowLeft')
-  await page.keyboard.press('ArrowLeft')
-  await expect(dialog.locator('[data-lb-count]')).toHaveText('10 de 19')
   await expect(dialog.locator('[data-lb-cat]')).toHaveText('Pães e folhados')
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()
@@ -177,4 +202,119 @@ test('movimento reduzido: conteúdo visível sem animações de entrada', async 
   await page.locator('#salao').scrollIntoViewIfNeeded()
   await expect(page.locator('[data-salao-copy]')).toHaveCSS('opacity', '1')
   await ctx.close()
+})
+
+test('cardápio: o índice da home leva à categoria na página do cardápio', async ({ page }) => {
+  const index = page.locator('#cardapio .menu-index-list a')
+  await expect(index).toHaveCount(13)
+  await index.filter({ hasText: 'Canoas' }).click()
+  await expect(page).toHaveURL(/cardapio\.html#canoas$/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('O cardápio.')
+  await expect.poll(() => page.evaluate(() => {
+    const r = document.getElementById('canoas').getBoundingClientRect()
+    return r.top >= 0 && r.top < window.innerHeight * 0.5
+  }), { timeout: 8000 }).toBe(true)
+  await expect(page.locator('#canoas .carta-item').first()).toContainText('Canoa Cottage')
+  await expect(page.locator('#canoas .carta-item').first()).toContainText('R$ 20,90')
+})
+
+test('cardápio: busca sem acento, por número, e estado vazio', async ({ page }) => {
+  await page.goto('./cardapio.html')
+  await expect(page.locator('[data-item]')).toHaveCount(108)
+  await expect(page.locator('[data-search-clear]')).toBeHidden()
+  const search = page.locator('[data-search]')
+  await search.fill('gateau')
+  await expect(page.locator('[data-search-status]')).toHaveText('1 item encontrado')
+  await expect(page.locator('[data-item]:visible')).toHaveText(/Petit Gâteau/)
+  await expect(page.locator('#cafes')).toBeHidden()
+  await search.fill('acai')
+  await expect(page.locator('[data-search-status]')).toHaveText('3 itens encontrados')
+  await search.fill('92')
+  await expect(page.locator('[data-item]:visible').first()).toContainText('Misto Quente')
+  await search.fill('xyzw')
+  await expect(page.locator('[data-search-empty]')).toBeVisible()
+  await page.locator('[data-search-reset]').click()
+  await expect(search).toHaveValue('')
+  await expect(page.locator('[data-item]:visible')).toHaveCount(108)
+})
+
+test('cardápio: categorias acompanham a leitura e não há rolagem horizontal', async ({ page, isMobile }) => {
+  await page.goto('./cardapio.html')
+  const [scrollW, viewW] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth])
+  expect(scrollW).toBeLessThanOrEqual(viewW)
+  await page.locator('[data-cat-nav] a[href="#sobremesas"]').click()
+  await expect(page.locator('[data-cat-nav] a[href="#sobremesas"]')).toHaveAttribute('aria-current', 'true', { timeout: 8000 })
+  await expect(page).toHaveURL(/#sobremesas$/)
+  if (isMobile) await expect(page.locator('[data-cat-nav]')).toBeInViewport()
+})
+
+test('destaques: cada atalho leva ao destino certo, sem sair para o Instagram', async ({ page }) => {
+  const hl = page.locator('.highlights a')
+  await expect(hl).toHaveCount(6)
+  const hrefs = await hl.evaluateAll((as) => as.map((a) => [a.textContent.trim(), a.getAttribute('href'), a.target]))
+  expect(hrefs).toEqual([
+    ['Clientes', '#salao', ''],
+    ['Adega', '#cafes-e-adega', ''],
+    ['Bolos e doces', '#bolos-e-doces', ''],
+    ['Cafés', 'cardapio.html#cafes', ''],
+    ['Ilha de frios', '#cafes-e-adega', ''],
+    ['Localização', '#visite', ''],
+  ])
+  const inView = (sel) => page.evaluate((s) => {
+    const r = document.querySelector(s).getBoundingClientRect()
+    return r.top < window.innerHeight * 0.7 && r.bottom > 0
+  }, sel)
+
+  await hl.filter({ hasText: 'Adega' }).click()
+  await expect(page).toHaveURL(/#cafes-e-adega$/)
+  await expect(page.locator('#cafes-e-adega')).toBeVisible()
+  await expect(page.getByRole('tab', { name: /Cafés e adega/ })).toHaveAttribute('aria-selected', 'true')
+  await expect.poll(() => inView('#vitrine'), { timeout: 8000 }).toBe(true)
+
+  await page.locator('#instagram').scrollIntoViewIfNeeded()
+  await hl.filter({ hasText: 'Bolos e doces' }).click()
+  await expect(page).toHaveURL(/#bolos-e-doces$/)
+  await expect(page.locator('#bolos-e-doces')).toBeVisible()
+  await expect(page.locator('#cafes-e-adega')).toBeHidden()
+  await expect.poll(() => inView('#vitrine'), { timeout: 8000 }).toBe(true)
+
+  await page.locator('#instagram').scrollIntoViewIfNeeded()
+  await hl.filter({ hasText: 'Clientes' }).click()
+  await expect(page).toHaveURL(/#salao$/)
+  await expect.poll(() => inView('#salao'), { timeout: 8000 }).toBe(true)
+
+  await page.locator('#instagram').scrollIntoViewIfNeeded()
+  await hl.filter({ hasText: 'Localização' }).click()
+  await expect(page).toHaveURL(/#visite$/)
+  await expect.poll(() => inView('#visite'), { timeout: 8000 }).toBe(true)
+
+  await page.locator('#instagram').scrollIntoViewIfNeeded()
+  await hl.filter({ hasText: 'Cafés' }).click()
+  await expect(page).toHaveURL(/cardapio\.html#cafes$/)
+  await expect(page.locator('#cafes')).toBeInViewport()
+})
+
+test('atalho de prateleira aberto direto pela URL abre a prateleira certa', async ({ page }) => {
+  await page.goto('./#cafes-e-adega')
+  await expect(page.locator('#cafes-e-adega')).toBeVisible()
+  await expect(page.getByRole('tab', { name: /Cafés e adega/ })).toHaveAttribute('aria-selected', 'true')
+  await expect.poll(() => page.evaluate(() => {
+    const r = document.getElementById('vitrine').getBoundingClientRect()
+    return r.top < window.innerHeight * 0.7 && r.bottom > 0
+  }), { timeout: 8000 }).toBe(true)
+})
+
+test('sem repetição: horário ao vivo só na abertura, avisos num lugar, fotos todas diferentes', async ({ page }) => {
+  await expect(page.locator('[data-status]')).toHaveCount(1)
+  await expect(page.locator('.hero [data-status]')).toHaveCount(1)
+  await expect(page.locator('#visite tr[data-day]')).toHaveCount(7)
+  await expect(page.locator('#visite .hours-note')).toBeVisible()
+  await expect(page.locator('.rules-list li')).toHaveCount(3)
+  await expect(page.locator('#visite')).not.toContainText('Não fazemos reservas')
+  const names = await page.locator('main img').evaluateAll((imgs) => imgs.map((i) => (i.currentSrc || i.src).match(/img\/(.+?)-\d+\.(?:webp|avif)/)?.[1]).filter(Boolean))
+  const dup = names.filter((n, i) => names.indexOf(n) !== i)
+  expect(dup, 'fotos repetidas na página').toEqual([])
+  await page.goto('./cardapio.html')
+  await expect(page.locator('[data-status]')).toHaveCount(0)
+  await expect(page.locator('.carta-close a[href="./#casa"]')).toBeVisible()
 })

@@ -14,6 +14,7 @@ WIDTHS = (640, 1080, 1600)
 
 # name: (left, top, right, bottom) crop in source pixels; None keeps the full frame.
 BADGE = (0, 190, None, None)
+SHOT = (0, 115, None, None)
 CROPS = {
     'fachada-letreiro': None,
     'fachada-relevo': None,
@@ -42,13 +43,49 @@ CROPS = {
     'prato-salmao': BADGE,
     'pratos-saladas': BADGE,
     'salada-salmao': BADGE,
+    # Screenshots of the house's Instagram sent by the user on 2026-10-14 (~850 px):
+    # the badge band is 115 px tall at that size.
+    'folhado-creme': None,                     # no badge in this one
+    'doce-urso': SHOT,
+    'fatia-bolo-chocolate': SHOT,
+    'paes-dourados': SHOT,
+    'prato-carne': SHOT,
+    'salmao-cogumelos': SHOT,
+    'bebida-morango': SHOT,
+    'croissants-acucar': SHOT,
+    'folhados-coracao': SHOT,
+    'sanduiche-salmao': SHOT,
+    'salao-vidro': SHOT,
+    'salao-palmeira': SHOT,
+    'quiche-tomate': SHOT,
+    'torrada-presunto': SHOT,
+    'cafe-espuma': SHOT,
+    'crepe-gratinado': SHOT,
+    'fachada-inteira': SHOT,
+    'coxinhas': SHOT,
+    'balcao-vitrine': SHOT,
+    'pizza-presunto': SHOT,
+    'adega-maquinas': SHOT,
+    # More screenshots sent by the user on 2026-10-14 (second batch, ~850 px).
+    'ilha-de-frios': SHOT,
+    'adega-parede': SHOT,
+    'adega-garrafas': SHOT,
+    'pratos-balcao': (285, 0, None, None),     # the badge only covers the top-left: cut the left strip, keep the heads
+    'fachada-noite-letreiro': (0, 110, None, None),
+    'balcao-paes': (0, 0, 815, None),          # no badge; drops the carousel arrow at the right edge
 }
 
 
-def main():
+def main(only=()):
+    """Exports every photo, or only the names given on the command line (the manifest is merged)."""
     os.makedirs(OUT, exist_ok=True)
     manifest = {}
+    if only:
+        with open('src/data/images.json', encoding='utf-8') as f:
+            manifest = json.load(f)
     for name, box in CROPS.items():
+        if only and name not in only:
+            continue
         im = ImageOps.exif_transpose(Image.open(os.path.join(SRC, name + '.jpg'))).convert('RGB')
         if box:
             l, t, r, b = box
@@ -65,6 +102,9 @@ def main():
     with open('src/data/images.json', 'w', encoding='utf-8') as f:
         json.dump(manifest, f, indent=1)
 
+    if only:
+        return
+
     # Brand marks: badge for the header and icons.
     badge = Image.open(os.path.join(SRC, 'brand', 'logo-icon.png')).convert('RGBA')
     badge.save(f'{OUT}/selo.png')
@@ -73,4 +113,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    main(tuple(sys.argv[1:]))
